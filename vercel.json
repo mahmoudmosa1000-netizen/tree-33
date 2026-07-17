@@ -1,0 +1,41 @@
+{
+  "buildCommand": "prisma generate && prisma migrate deploy && next build",
+  "installCommand": "npm ci",
+  "framework": "nextjs",
+  "regions": ["fra1"],
+  "env": {
+    "DATABASE_URL":      "@tok-database-url",
+    "OLLAMA_URL":        "@tok-ollama-url",
+    "OLLAMA_MODEL":      "@tok-ollama-model",
+    "NEXTAUTH_SECRET":   "@tok-nextauth-secret",
+    "NEXTAUTH_URL":      "@tok-nextauth-url"
+  },
+  "functions": {
+    "src/app/api/ai/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/philosophers/route.ts": {
+      "maxDuration": 10
+    }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options",   "value": "nosniff" },
+        { "key": "X-Frame-Options",           "value": "DENY" },
+        { "key": "X-XSS-Protection",          "value": "1; mode=block" },
+        { "key": "Referrer-Policy",           "value": "strict-origin-when-cross-origin" }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/philosopher/:slug", "destination": "/philosopher/[slug]" }
+  ]
+}

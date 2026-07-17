@@ -1,0 +1,21 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-playfair: 'Playfair Display', Georgia, serif;
+  --font-inter: 'Inter', system-ui, sans-serif;
+  --c-bg: #060B08;
+  --c-text: #F0E6D3;
+  --c-gold: #C9A227;
+  --c-muted: #3D5A3F;
+}
+
+* { box-sizing: border-box; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #1A2E1C; border-radius: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+.font-playfair { font-family: var(--font-playfair); }
+.font-inter    { font-family: var(--font-inter); }

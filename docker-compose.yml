@@ -1,0 +1,101 @@
+# docker-compose.yml
+# Tree of Knowledge — lokale Entwicklungsumgebung
+# Starten: docker-compose up -d
+
+version: '3.9'
+
+services:
+
+  # ── PostgreSQL Datenbank ─────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: tok-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       tree_of_knowledge
+      POSTGRES_USER:     tok_user
+      POSTGRES_PASSWORD: tok_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tok_user -d tree_of_knowledge"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Ollama (lokale KI) ───────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: tok-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      OLLAMA_ORIGINS: "*"          # Browser-Zugriff erlauben
+      OLLAMA_HOST: "0.0.0.0"
+    # GPU-Support (optional, auskommentiert lassen wenn kein GPU):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ── pgAdmin (Datenbank-UI) ───────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tok-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@tok.local
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
+  # ── Next.js App (Production-Build) ──────────────────────
+  # Nur für Docker-Deployment nutzen.
+  # Für lokale Entwicklung: npm run dev
+  app:
+    build:
+      context: ..
+      dockerfile: tok-deploy/Dockerfile
+    container_name: tok-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://tok_user:tok_secret@postgres:5432/tree_of_knowledge
+      OLLAMA_URL:   http://ollama:11434
+      OLLAMA_MODEL: llama3
+      NEXTAUTH_SECRET: change-me-in-production-32-chars-min
+      NEXTAUTH_URL: http://localhost:3000
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - full    # Nur mit: docker-compose --profile full up
+
+volumes:
+  postgres_data:
+  ollama_data:
+  pgadmin_data:
+
+# ── Quickstart ──────────────────────────────────────────────
+# docker-compose up -d postgres ollama    ← nur DB + KI
+# docker-compose up -d                    ← alle Services
+# docker-compose --profile full up -d    ← inkl. Next.js App
+#
+# DB-URL für .env.local:
+# DATABASE_URL="postgresql://tok_user:tok_secret@localhost:5432/tree_of_knowledge"

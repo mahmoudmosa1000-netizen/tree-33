@@ -1,0 +1,175 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")   // Supabase: direkte Verbindung für Migrationen
+}
+
+model Era {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  name_de      String
+  name_en      String
+  name_ar      String?
+  colorHex     String
+  startYear    Int
+  endYear      Int?
+  description  String?
+  philosophers Philosopher[]
+  createdAt    DateTime      @default(now())
+}
+
+model Philosopher {
+  id         String  @id @default(cuid())
+  slug       String  @unique
+  name       String
+  shortName  String
+  life       String
+  birthYear  Int
+  deathYear  Int?
+  era        Era     @relation(fields: [eraId], references: [id])
+  eraId      String
+  treeX      Float
+  treeY      Float
+  colorHex   String
+  bio_de     String  @db.Text
+  bio_en     String  @db.Text
+  bio_ar     String? @db.Text
+  wikiSlug   String?
+  wikidataId String?
+  imageUrl   String?
+
+  ideas         Idea[]
+  quotes        Quote[]
+  influencing   Influence[]    @relation("influencer")
+  influencedBy  Influence[]    @relation("influenced")
+  notes         Note[]
+  favorites     UserFavorite[]
+  progress      LearningProgress[]
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([eraId])
+  @@index([birthYear])
+}
+
+model Idea {
+  id            String      @id @default(cuid())
+  name_de       String
+  name_en       String
+  name_ar       String?
+  description   String?
+  philosopher   Philosopher @relation(fields: [philosopherId], references: [id], onDelete: Cascade)
+  philosopherId String
+}
+
+model Quote {
+  id            String      @id @default(cuid())
+  text_de       String      @db.Text
+  text_en       String?     @db.Text
+  text_ar       String?     @db.Text
+  source        String?
+  philosopher   Philosopher @relation(fields: [philosopherId], references: [id], onDelete: Cascade)
+  philosopherId String
+}
+
+model Influence {
+  id           String      @id @default(cuid())
+  influencer   Philosopher @relation("influencer", fields: [influencerId], references: [id])
+  influencerId String
+  influenced   Philosopher @relation("influenced", fields: [influencedId], references: [id])
+  influencedId String
+  strength     Float       @default(1.0)
+  type         InfluenceType @default(DIRECT)
+
+  @@unique([influencerId, influencedId])
+  @@index([influencerId])
+  @@index([influencedId])
+}
+
+enum InfluenceType {
+  DIRECT
+  INTELLECTUAL
+  CRITICAL
+  PARALLEL
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  role      Role     @default(USER)
+
+  favorites    UserFavorite[]
+  notes        Note[]
+  progress     LearningProgress[]
+  sessions     Session[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model UserFavorite {
+  id            String      @id @default(cuid())
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  philosopher   Philosopher @relation(fields: [philosopherId], references: [id])
+  philosopherId String
+  createdAt     DateTime    @default(now())
+
+  @@unique([userId, philosopherId])
+}
+
+model Note {
+  id            String      @id @default(cuid())
+  content       String      @db.Text
+  philosopher   Philosopher @relation(fields: [philosopherId], references: [id])
+  philosopherId String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model LearningProgress {
+  id             String      @id @default(cuid())
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  philosopher    Philosopher @relation(fields: [philosopherId], references: [id])
+  philosopherId  String
+  visited        Boolean     @default(false)
+  questionsAsked Int         @default(0)
+  quizCorrect    Int         @default(0)
+  quizTotal      Int         @default(0)
+  lastVisited    DateTime    @default(now())
+
+  @@unique([userId, philosopherId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
